@@ -1,0 +1,3 @@
+
+
+@"Data Source=Your Server Name;Initial Catalog=Your Database Name;"
