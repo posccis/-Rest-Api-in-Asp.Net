@@ -1,4 +1,4 @@
-# Rest API with Aps.Net Cours <img src="/microsoft-dot-net.png" heigh="30" width="30">
+# Rest API with Aps.Net Cours <img src="/microsoft-dot-net.png" heigh="50" width="50">
 
 ## About the course
    <p>It's a course of Rest API using the Asp.Net framework and some others frameworks like Entity.</p>
