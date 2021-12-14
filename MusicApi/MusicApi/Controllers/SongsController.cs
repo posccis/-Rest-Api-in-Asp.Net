@@ -2,13 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MusicApi.Data;
+using MusicApi.Helpers;
 using MusicApi.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace MusicApi.Controllers
 {
@@ -18,78 +17,85 @@ namespace MusicApi.Controllers
     {
         private ApiDbContext _dbContext;
 
-        public SongsController(ApiDbContext dbContext)
+        public SongsController (ApiDbContext dbContext) 
         {
             _dbContext = dbContext;
         }
 
-        // GET: api/<SongsController>
-        [HttpGet]
-        public async Task<IActionResult> Get()
-        {
-            return Ok(await _dbContext.Songs.ToListAsync());
-        }
-
-        // GET api/<SongsController>/5
-        [HttpGet("{id}")]
-        public IActionResult Get(int id)
-        {
-            var song = _dbContext.Songs.Find(id);
-            if (song == null)
-            {
-                return NotFound("Sorry!\nWe couldn't find any song with the id " + id + " :c\nTry other");
-            }
-            else
-            {
-                return Ok(song);
-            }
-            
-        }
-
-        // POST api/<SongsController>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] Song song)
+        public async Task<IActionResult> Post([FromForm] Song song) 
         {
+            var imageUrl = await FileHelper.UploadImage(song.Image);
+            song.ImageUrl = imageUrl;
+            var audioUrl = await FileHelper.UploadFile(song.AudioFile);
+            song.AudioUrl = audioUrl;
+            song.UploadDate = DateTime.Now;
             await _dbContext.Songs.AddAsync(song);
             await _dbContext.SaveChangesAsync();
             return StatusCode(StatusCodes.Status201Created);
         }
 
-        // PUT api/<SongsController>/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] Song songObj)
+        [HttpGet]
+        public async Task<IActionResult> GetAllSongs( int pageNumber, int pageSize)
         {
-            var song = await _dbContext.Songs.FindAsync(id);
-            if (song == null)
-            {
-                return NotFound("We can't find any song with this Id :c");
-            }
-            else
-            {
-                song.Title = songObj.Title;
-                song.Language = songObj.Language;
-                await _dbContext.SaveChangesAsync();
-                return Ok();
-            }
-
+            var songs = await (from song in _dbContext.Songs
+                               select new
+                               {
+                                   Id = song.Id,
+                                   Title = song.Title,
+                                   Duração = song.Duration,
+                                   ImageUrl = song.ImageUrl,
+                                   AudioUrl = song.AudioUrl
+                               }).ToListAsync();
+            return Ok(songs.Skip((pageNumber-1) * pageSize).Take(pageSize));
         }
 
-        // DELETE api/<SongsController>/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        [HttpGet("[action]")]
+        public async Task<IActionResult> FeaturedSongs()
         {
-            var song = await _dbContext.Songs.FindAsync(id);
-            if (song == null)
-            {
-                return NotFound("Sorry!\nWe couldn't find any song with the id "+id+" :c\nTry other");
-            }
-            else
-            {
-                _dbContext.Songs.Remove(song);
-                await _dbContext.SaveChangesAsync();
-                return Ok("Deleted" + id);
-            }
+            var songs = await (from song in _dbContext.Songs
+                               where song.IsFeatured == true
+                               select new
+                               {
+                                   Id = song.Id,
+                                   Title = song.Title,
+                                   Duração = song.Duration,
+                                   ImageUrl = song.ImageUrl,
+                                   AudioUrl = song.AudioUrl
+                               }).Take(15).ToListAsync();
+            return Ok(songs);
+        }
 
+        [HttpGet("[action]")]
+        public async Task<IActionResult> NewSongs()
+        {
+            var songs = await (from song in _dbContext.Songs
+                               orderby song.UploadDate descending
+                               select new
+                               {
+                                   Id = song.Id,
+                                   Title = song.Title,
+                                   Duração = song.Duration,
+                                   ImageUrl = song.ImageUrl,
+                                   AudioUrl = song.AudioUrl
+                               }).ToListAsync();
+            return Ok(songs);
+        }
+
+        [HttpGet("[action]")]
+        public async Task<IActionResult> SearchSongs(string query)
+        {
+            var songs = await (from song in _dbContext.Songs
+                               where song.Title.StartsWith(query)  
+                               select new
+                               {
+                                   Id = song.Id,
+                                   Title = song.Title,
+                                   Duração = song.Duration,
+                                   ImageUrl = song.ImageUrl,
+                                   AudioUrl = song.AudioUrl
+                               }).ToListAsync();
+            return Ok(songs);
         }
     }
 }
